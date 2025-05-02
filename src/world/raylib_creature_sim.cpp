@@ -6,19 +6,20 @@
 
 struct Creature {
     Vector2 position;
-    float angle;
+    float orientation;
     float energy;
 
     void update() {
         float speed = 1.0f;
-        position.x += speed * cos(angle);
-        position.y += speed * sin(angle);
 
-        // Keep inside screen
-        if (position.x < 0) position.x = 0;
-        if (position.y < 0) position.y = 0;
-        if (position.x > 800) position.x = 800;
-        if (position.y > 600) position.y = 600;
+		if (energy > 0) {
+        	position.x += speed * cos(orientation);
+        	position.y += speed * sin(orientation);
+			if (position.x < 0) position.x = 800 + position.x;
+			if (position.y < 0) position.y = 600 + position.y;
+			if (position.x > 800) position.x = position.x - 800;
+			if (position.y > 600) position.y = position.y - 600;
+		}
 
         // Lose energy over time
         energy -= 0.1f;
