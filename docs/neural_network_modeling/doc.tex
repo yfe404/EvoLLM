@@ -1,0 +1,148 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{Documentation: Simple Neural Processing Network with Random Genome}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Overview}
+
+This document describes a simple feedforward neural processing network. It consists of:
+
+\begin{itemize}
+    \item $N_S = 8$ sensory neurons
+    \item $N_I = 4$ internal neurons
+    \item $N_A = 5$ action neurons
+    \item $N_C = 10$ encoded genome connections
+\end{itemize}
+
+Each connection (gene) is randomly generated and determines a weighted link from a source neuron to a sink neuron. The genome guides how information flows from the sensory neurons, through internal neurons, to the action neurons.
+
+\section{Softmax Function}
+
+The softmax function converts a vector $\mathbf{x} \in \mathbb{R}^n$ into a probability distribution:
+
+\[
+\text{softmax}(\mathbf{x})_i = \frac{e^{x_i}}{\sum_{j=1}^n e^{x_j}}
+\]
+
+\section{Neuron State Vectors}
+
+Let:
+
+\begin{itemize}
+    \item $\mathbf{s} \in \mathbb{R}^{N_S}$: Sensory neuron activations (random in $[-1, 1]$)
+    \item $\mathbf{h} \in \mathbb{R}^{N_I}$: Internal neuron activations (initialized to 0)
+    \item $\mathbf{a} \in \mathbb{R}^{N_A}$: Action neuron activations (initialized to 0)
+\end{itemize}
+
+\section{Gene Encoding}
+
+Each gene is a 32-bit binary string, encoded as an 8-digit hexadecimal string. The structure is:
+
+\begin{itemize}
+    \item Bit 0: Source type (0 = sensory, 1 = internal)
+    \item Bits 1--7: Source neuron ID
+    \item Bit 8: Sink type (0 = internal, 1 = action)
+    \item Bits 9--15: Sink neuron ID
+    \item Bits 16--31: Weight (interpreted as signed integer, scaled to $[-4.0, 4.0]$)
+\end{itemize}
+
+\subsection*{Weight Calculation}
+
+Let $W$ be the 16-bit signed integer represented by bits 16--31. The weight is computed as:
+
+\[
+w = \frac{W - 32768}{8192}
+\]
+
+\section{Signal Propagation}
+
+\subsection{Phase 1: Sensory $\rightarrow$ Internal or Action}
+
+For each gene where the source is a sensory neuron ($s_i$):
+
+\[
+\text{if sink is internal neuron } h_j: \quad h_j \mathrel{+}= w \cdot s_i
+\]
+\[
+\text{if sink is action neuron } a_k: \quad a_k \mathrel{+}= w \cdot s_i
+\]
+
+\subsection{Phase 2: Internal $\rightarrow$ Internal (Stacked)}
+
+For each gene from internal neuron $h_i$ to internal neuron $h_j$:
+
+\[
+h_j \mathrel{+}= w \cdot h_i
+\]
+
+After all internal-to-internal updates, apply nonlinearity:
+
+\[
+\mathbf{h} \leftarrow \tanh(\mathbf{h})
+\]
+
+\subsection{Phase 3: Internal $\rightarrow$ Action (Stacked)}
+
+For each gene from internal neuron $h_i$ to action neuron $a_k$:
+
+\[
+a_k \mathrel{+}= w \cdot h_i
+\]
+
+Apply nonlinearity:
+
+\[
+\mathbf{a} \leftarrow \tanh(\mathbf{a})
+\]
+
+\section{Action Selection}
+
+Compute softmax over the action neurons:
+
+\[
+\mathbf{p} = \text{softmax}(\mathbf{a})
+\]
+
+Sample action index $i$ from the probability distribution $\mathbf{p}$:
+
+\[
+\text{action} \sim \text{Categorical}(\mathbf{p})
+\]
+
+\section{Implementation Snippet}
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\small]
+def softmax(x):
+    f_x = np.exp(x) / np.sum(np.exp(x))
+    return f_x
+
+def generate_random_gene():
+    return "".join(random.choices("0123456789abcdef", k=8))
+
+sensory_neurons = np.random.uniform(-1, 1, N_SENSORY_NEURONS)
+genome = [generate_random_gene() for _ in range(N_CONNECTIONS)]
+...
+action = np.random.choice(range(len(action_neurons)), p=softmax(action_neurons))
+\end{lstlisting}
+
+\section{Notes}
+
+\begin{itemize}
+    \item Internal neuron processing is staged: sensory inputs are applied first, followed by internal-to-internal updates, then internal-to-action.
+    \item The gene architecture allows for a compact, evolvable representation suitable for artificial life or agent control tasks.
+\end{itemize}
+
+\end{document}
+
